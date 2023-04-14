@@ -1,170 +1,116 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows;
+using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
+using System.Windows.Controls;
 
 namespace LengthCalc
 {
-    [Transaction(TransactionMode.Manual)]
+    [Transaction(TransactionMode.ReadOnly)]
     public class LengthCalcCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            // Get application and document objects
             UIApplication uiApp = commandData.Application;
             UIDocument uiDoc = uiApp.ActiveUIDocument;
             Document doc = uiDoc.Document;
 
-            try
-            {
-                // Get the selected pipe and duct elements
-                List<Element> selectedElements = GetSelectedElements(uiDoc);
+            // Access the selected objects
+            ICollection<ElementId> selectedIds = uiDoc.Selection.GetElementIds();
 
-                if (selectedElements.Count == 0)
+            // Filter and classify the selected objects
+            var ductsPipesBySystemAndSize = new Dictionary<Tuple<string, string>, double>();
+
+            foreach (ElementId id in selectedIds)
+            {
+                Element elem = doc.GetElement(id);
+                string size = string.Empty;
+                string systemType = string.Empty;
+                double length = 0;
+
+                if (elem is Duct duct)
                 {
-                    TaskDialog.Show("Error", "No pipes or ducts are selected. Please select some pipes or ducts and try again.");
-                    return Result.Cancelled;
-                }
+                    systemType = duct.DuctType.FamilyName;
 
-                // Calculate the total length of selected elements and separate it by system type
-                var lengthsBySystem = CalculateElementLengthsBySystem(selectedElements);
-
-                // Display the data in a TaskDialog
-                DisplayElementLengths(lengthsBySystem.Item1, lengthsBySystem.Item2);
-
-                return Result.Succeeded;
-            }
-            catch (Exception ex)
-            {
-                message = ex.Message;
-                return Result.Failed;
-            }
-        }
-
-        private List<Element> GetSelectedElements(UIDocument uiDoc)
-        {
-            ICollection<ElementId> selectedElementIds = uiDoc.Selection.GetElementIds();
-            List<Element> selectedElements = new List<Element>();
-
-            foreach (ElementId id in selectedElementIds)
-            {
-                Element elem = uiDoc.Document.GetElement(id);
-                if (elem is Pipe || elem is Duct)
-                {
-                    selectedElements.Add(elem);
-                }
-            }
-
-            return selectedElements;
-        }
-
-        private Tuple<Dictionary<string, double>, Dictionary<string, double>> CalculateElementLengthsBySystem(List<Element> elements)
-        {
-            Dictionary<string, double> pipeLengthsBySystem = new Dictionary<string, double>();
-            Dictionary<string, double> ductLengthsBySystem = new Dictionary<string, double>();
-
-            foreach (Element element in elements)
-            {
-                string systemType;
-                double length;
-
-                if (element is Pipe)
-                {
-                    Pipe pipe = element as Pipe;
-                    systemType = pipe.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM).AsValueString();
-                    length = pipe.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble();
-                    if (pipeLengthsBySystem.ContainsKey(systemType))
+                    if (systemType.IndexOf("round", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        pipeLengthsBySystem[systemType] += length;
+                        Parameter diameterParam = duct.LookupParameter("Diameter");
+                        size = diameterParam.AsValueString();
                     }
                     else
                     {
-                        pipeLengthsBySystem.Add(systemType, length);
+                        Parameter widthParam = duct.LookupParameter("Width");
+                        Parameter heightParam = duct.LookupParameter("Height");
+                        double width = widthParam.AsDouble()*12;
+                        double height = heightParam.AsDouble()*12;
+                        size = $"{width} x {height}";
                     }
+
+                    length = duct.LookupParameter("Length").AsDouble();
                 }
-                else if (element is Duct)
+
+                else if (elem is Pipe pipe)
                 {
-                    Duct duct = element as Duct;
-                    systemType = duct.get_Parameter(BuiltInParameter.RBS_SYSTEM_NAME_PARAM).AsString();
-                    length = duct.get_Parameter(BuiltInParameter.CURVE_ELEM_LENGTH).AsDouble();
-                    if (ductLengthsBySystem.ContainsKey(systemType))
-                    {
-                        ductLengthsBySystem[systemType] += length;
-                    }
-                    else
-                    {
-                        ductLengthsBySystem.Add(systemType, length);
-                    }
+                    Parameter diameterParam = pipe.LookupParameter("Diameter");
+                    size = diameterParam.AsValueString();
+                    systemType = pipe.PipeType.FamilyName;
+                    length = pipe.LookupParameter("Length").AsDouble();
+                }
+                else
+                {
+                    continue;
+                }
+
+                var key = new Tuple<string, string>(systemType, size);
+                if (ductsPipesBySystemAndSize.ContainsKey(key))
+                {
+                    ductsPipesBySystemAndSize[key] += length;
+                }
+                else
+                {
+                    ductsPipesBySystemAndSize[key] = length;
                 }
             }
 
-            return new Tuple<Dictionary<string, double>, Dictionary<string, double>>(pipeLengthsBySystem, ductLengthsBySystem);
-        }
+            // Generate a table for the output
+            //string tableHeader = "System Type\tSize\tTotal Length\n";
+            //string tableData = string.Join("\n", ductsPipesBySystemAndSize.Select(
+            //    kvp => $"{kvp.Key.Item1}\t{kvp.Key.Item2}\t{UnitUtils.ConvertFromInternalUnits(kvp.Value, UnitTypeId.Meters)} ft"));
 
-        private void DisplayElementLengths(Dictionary<string, double> pipeLengthsBySystem, Dictionary<string, double> ductLengthsBySystem)
-        {
-            // Prepare the TaskDialog
-            TaskDialog dialog = new TaskDialog("Element Lengths by System")
+            //string resultTable = tableHeader + tableData;
+
+            //// Display the result
+            //TaskDialog.Show("Duct and Pipe Lengths by System Type and Size", resultTable);
+
+            var resultTableControl = new ResultTableControl();
+
+            var resultList = ductsPipesBySystemAndSize.Select(
+                kvp => new { SystemType = kvp.Key.Item1, Size = kvp.Key.Item2, TotalLength = Math.Round(UnitUtils.ConvertFromInternalUnits(kvp.Value, UnitTypeId.Feet), 2) }).ToList();
+
+
+            resultTableControl.ResultDataGrid.ItemsSource = resultList;
+
+            var window = new Window
             {
-                MainIcon = TaskDialogIcon.TaskDialogIconInformation,
-                MainInstruction = "Total length of selected pipes and ducts by system:",
-                AllowCancellation = false
+                Title = "Duct and Pipe Lengths by System Type and Size",
+                Content = resultTableControl,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                ResizeMode = ResizeMode.NoResize,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
             };
 
-            // Add the data to the TaskDialog
-            string data = string.Empty;
+            // Show the window as a dialog (modal)
+            window.ShowDialog();
 
-            if (pipeLengthsBySystem.Count > 0)
-            {
-                data += "Pipes:\n";
-                double totalPipeLength = 0;
-
-                foreach (var entry in pipeLengthsBySystem)
-                {
-                    // Display the length in feet and inches
-                    double lengthFeet = entry.Value;
-                    int feet = (int)Math.Floor(lengthFeet);
-                    double inches = (lengthFeet - feet) * 12;
-
-                    data += $"{entry.Key}: {feet} ft {inches:F2} in{Environment.NewLine}";
-                    totalPipeLength += lengthFeet;
-                }
-
-                // Calculate the total length of pipe systems in feet rounded up to the nearest 5 feet
-                int totalPipeLengthRounded = (int)Math.Ceiling(totalPipeLength / 5) * 5;
-                data += $"{Environment.NewLine}Total Pipe Length (rounded up to nearest 5 ft): {totalPipeLengthRounded} ft{Environment.NewLine}";
-            }
-
-            if (ductLengthsBySystem.Count > 0)
-            {
-                if (data.Length > 0) data += "\n";
-                data += "Ducts:\n";
-                double totalDuctLength = 0;
-
-                foreach (var entry in ductLengthsBySystem)
-                {
-                    // Display the length in feet and inches
-                    double lengthFeet = entry.Value;
-                    int feet = (int)Math.Floor(lengthFeet);
-                    double inches = (lengthFeet - feet) * 12;
-
-                    data += $"{entry.Key}: {feet} ft {inches:F2} in{Environment.NewLine}";
-                    totalDuctLength += lengthFeet;
-                }
-
-                // Calculate the total length of duct systems in feet rounded up to the nearest 5 feet
-                int totalDuctLengthRounded = (int)Math.Ceiling(totalDuctLength / 5) * 5;
-                data += $"{Environment.NewLine}Total Duct Length (rounded up to nearest 5 ft): {totalDuctLengthRounded} ft{Environment.NewLine}";
-            }
-
-            dialog.MainContent = data;
-
-            // Show the TaskDialog
-            dialog.Show();
+            return Result.Succeeded;
         }
     }
 }
