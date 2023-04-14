@@ -1,12 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <RevitAddIns>
 	<AddIn Type="Command">
-		<Name>PipeLengthCalculator</Name>
+		<Name>LengthCalculator</Name>
 		<!--<Assembly>D:\REVIT\ADDINS\LengthCalc\bin\Debug\LengthCalc.dll</Assembly>-->
-		<Assembly>.\LengthCalc\LengthCalc.dll</Assembly>
+		<!-- <Assembly>.\LengthCalc\LengthCalc.dll</Assembly> -->
+		<Assembly>C:\Users\jrw\OneDrive - FSB Architects + Engineers\Documents\$workspace\ADDINS\LengthCalc\bin\Debug\LengthCalc.dll</Assembly>
 		<AddInId>{8861AA0B-F5A3-4FBE-B3A6-701A00566839}</AddInId>
 		<FullClassName>LengthCalc.LengthCalcCommand</FullClassName>
-		<Text>Calculate Pipe Lengths</Text>
+		<Text>Calculate Selected Pipe and Duct Lengths</Text>
 		<Description>Calculates the total length of selected pipe elements, separated by system type, and displays the data in a TaskDialog.</Description>
 		<VendorId>Mr.Wiener</VendorId>
 		<VendorDescription>Mr.Wiener's Solutions (405) 420-3698</VendorDescription>
