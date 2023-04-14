@@ -3,6 +3,7 @@
 	<AddIn Type="Command">
 		<Name>PipeLengthCalculator</Name>
 		<Assembly>D:\REVIT\ADDINS\LengthCalc\bin\Debug\LengthCalc.dll</Assembly>
+		<Assembly>.\LengthCalc\LengthCalc.dll</Assembly>
 		<AddInId>{8861AA0B-F5A3-4FBE-B3A6-701A00566839}</AddInId>
 		<FullClassName>LengthCalc.LengthCalcCommand</FullClassName>
 		<Text>Calculate Pipe Lengths</Text>
