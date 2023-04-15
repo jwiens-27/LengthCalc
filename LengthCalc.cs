@@ -113,8 +113,9 @@ namespace LengthCalc
             {
                 Title = "Duct and Pipe Lengths by System Type and Size",
                 Content = resultTableControl,
-                SizeToContent = SizeToContent.WidthAndHeight,
-                ResizeMode = ResizeMode.NoResize,
+                Width = 800,
+                Height = 450,
+                ResizeMode = ResizeMode.CanResize,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen
             };
 

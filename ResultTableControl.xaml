@@ -3,9 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             mc:Ignorable="d" Height="112" Width="406">
+             mc:Ignorable="d">
     <Grid>
-        <DataGrid x:Name="ResultDataGrid" AutoGenerateColumns="False" IsReadOnly="True">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <DataGrid x:Name="ResultDataGrid" Grid.Row="0" Grid.Column="0" AutoGenerateColumns="False" IsReadOnly="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="System Type" Binding="{Binding SystemType}" Width="*"/>
                 <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="*"/>
