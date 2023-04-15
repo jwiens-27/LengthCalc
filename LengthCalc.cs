@@ -33,14 +33,20 @@ namespace LengthCalc
             {
                 Element elem = doc.GetElement(id);
                 string size = string.Empty;
+                string familyType = string.Empty;
                 string systemType = string.Empty;
                 double length = 0;
 
                 if (elem is Duct duct)
                 {
-                    systemType = duct.DuctType.FamilyName;
+                    familyType = duct.DuctType.FamilyName;
+                    MechanicalSystem mechanicalSystem = duct.MEPSystem as MechanicalSystem;
+                    if (mechanicalSystem != null)
+                    {
+                        systemType = mechanicalSystem.SystemType.ToString();
+                    }
 
-                    if (systemType.IndexOf("round", StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (familyType.IndexOf("round", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         Parameter diameterParam = duct.LookupParameter("Diameter");
                         size = diameterParam.AsValueString();
@@ -61,9 +67,14 @@ namespace LengthCalc
                 {
                     Parameter diameterParam = pipe.LookupParameter("Diameter");
                     size = diameterParam.AsValueString();
-                    systemType = pipe.PipeType.FamilyName;
+                    PipingSystem pipingSystem = pipe.MEPSystem as PipingSystem;
+                    if (pipingSystem != null)
+                    {
+                        systemType = pipingSystem.SystemType.ToString();
+                    }
                     length = pipe.LookupParameter("Length").AsDouble();
                 }
+
                 else
                 {
                     continue;
